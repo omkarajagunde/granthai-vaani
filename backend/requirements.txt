@@ -1,4 +1,19 @@
 google-genai 
 opencv-python 
 pyaudio 
-pillow mss
+pillow 
+mss
+fastapi
+elevenlabs
+pandas
+openpyxl
+dotenv
+uvicorn
+twilio
+google-cloud-aiplatform
+multipart
+APScheduler
+langdetect
+sarvamai
+SpeechRecognition 
+pygame
