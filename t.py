@@ -172,11 +172,20 @@ class ElevenLabsClient:
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.base_url = "https://api.elevenlabs.io/v1"
-        
+        # Using a default voice ID - you can change this to your preferred voice
         self.voice_id = "21m00Tcm4TlvDq8ikWAM"  # Rachel voice
+        
+        # Validate API key on initialization
+        if not api_key or api_key.strip() == "":
+            print("WARNING: ElevenLabs API key is missing or empty!")
+            print("Please check your .env file and ensure ELEVENLABS_API_KEY is set correctly.")
     
     def text_to_speech(self, text: str) -> bytes:
         """Convert text to speech using ElevenLabs API"""
+        if not self.api_key or self.api_key.strip() == "":
+            print("ElevenLabs API key not configured, skipping TTS...")
+            return None
+            
         url = f"{self.base_url}/text-to-speech/{self.voice_id}"
         
         headers = {
@@ -194,12 +203,21 @@ class ElevenLabsClient:
             }
         }
         
-        response = requests.post(url, json=data, headers=headers)
-        
-        if response.status_code == 200:
-            return response.content
-        else:
-            print(f"Error with ElevenLabs API: {response.status_code}")
+        try:
+            response = requests.post(url, json=data, headers=headers)
+            
+            if response.status_code == 200:
+                return response.content
+            elif response.status_code == 401:
+                print("ERROR: ElevenLabs API authentication failed (401)")
+                print("Please check your API key in the .env file")
+                print("Make sure your API key is valid and has sufficient credits")
+                return None
+            else:
+                print(f"ElevenLabs API Error: {response.status_code} - {response.text}")
+                return None
+        except Exception as e:
+            print(f"Exception calling ElevenLabs API: {e}")
             return None
 
 class SpeechManager:
@@ -289,9 +307,19 @@ Remember to be patient and understanding, as some patients may be anxious about 
     def speak(self, text: str):
         """Convert text to speech and play it"""
         print(f"AI: {text}")
-        audio_data = self.elevenlabs_client.text_to_speech(text)
-        if audio_data:
-            self.speech_manager.play_audio(audio_data)
+        
+        # Try to use ElevenLabs, but fallback to text-only if it fails
+        try:
+            audio_data = self.elevenlabs_client.text_to_speech(text)
+            if audio_data:
+                self.speech_manager.play_audio(audio_data)
+            else:
+                print("ElevenLabs TTS failed, continuing with text only...")
+        except Exception as e:
+            print(f"TTS Error: {e}")
+            print("Continuing with text-only mode...")
+            # You could add a system TTS fallback here if needed
+            # For example, using pyttsx3 or Windows SAPI
     
     def listen(self) -> Optional[str]:
         """Listen for patient input"""
@@ -385,26 +413,84 @@ Remember to be patient and understanding, as some patients may be anxious about 
     def handle_doctor_selection(self, user_input: str) -> str:
         doctors = self.db_manager.get_available_doctors()
         
-        # Simple matching logic - look for doctor name and time in input
+        # Improved matching logic - more flexible parsing
         selected_doctor = None
         selected_time = None
         
+        print(f"DEBUG: User input: '{user_input}'")
+        print(f"DEBUG: Available doctors: {doctors}")
+        
+        # First, try to find doctor name
         for doc in doctors:
-            doc_name_parts = doc["doctor_name"].lower().split()
-            if any(part in user_input for part in doc_name_parts):
-                if doc["time_slot"] in user_input or doc["time_slot"].replace(":", "") in user_input:
-                    selected_doctor = doc["doctor_name"]
-                    selected_time = doc["time_slot"]
+            doc_name = doc["doctor_name"].lower()
+            doc_last_name = doc_name.split()[-1]  # Get last name (e.g., "patel" from "dr. patel")
+            
+            print(f"DEBUG: Checking {doc_name} (last name: {doc_last_name})")
+            
+            if doc_last_name in user_input or doc_name in user_input:
+                selected_doctor = doc["doctor_name"]
+                print(f"DEBUG: Found doctor: {selected_doctor}")
+                
+                # Look for time in the same input or ask for it
+                time_slot = doc["time_slot"]
+                time_variants = [
+                    time_slot,  # "09:00"
+                    time_slot.replace(":", ""),  # "0900"
+                    time_slot.lstrip("0"),  # "9:00"
+                    time_slot.replace(":00", ""),  # "09"
+                    str(int(time_slot.split(":")[0]))  # "9"
+                ]
+                
+                print(f"DEBUG: Looking for time variants: {time_variants}")
+                
+                if any(variant in user_input for variant in time_variants):
+                    selected_time = time_slot
+                    print(f"DEBUG: Found time: {selected_time}")
                     break
         
+        # If we found doctor but no time, ask for time specifically
+        if selected_doctor and not selected_time:
+            available_times = [doc["time_slot"] for doc in doctors if doc["doctor_name"] == selected_doctor]
+            self.conversation_state["temp_selected_doctor"] = selected_doctor
+            return f"Great choice! {selected_doctor} is available at these times: {', '.join(available_times)}. Which time would you prefer?"
+        
+        # If we have both doctor and time, proceed to confirmation
         if selected_doctor and selected_time:
             self.conversation_state["selected_doctor"] = selected_doctor
             self.conversation_state["selected_time"] = selected_time
             self.conversation_state["stage"] = "confirmation"
             
             return f"Perfect! I have you scheduled with {selected_doctor} at {selected_time}. Let me confirm your details:\n\nName: {self.conversation_state['patient_name']}\nPhone: {self.conversation_state['patient_phone']}\nDoctor: {selected_doctor}\nTime: {selected_time}\n\nShall I confirm this appointment?"
-        else:
-            return "I couldn't identify the doctor and time from your response. Could you please specify the doctor's name and preferred time slot? For example, 'Dr. Smith at 9:00' or 'Dr. Johnson at 10:30'."
+        
+        # If we have a temporarily selected doctor from previous interaction
+        if "temp_selected_doctor" in self.conversation_state:
+            temp_doctor = self.conversation_state["temp_selected_doctor"]
+            available_times = [doc["time_slot"] for doc in doctors if doc["doctor_name"] == temp_doctor]
+            
+            # Try to match time from user input
+            for time_slot in available_times:
+                time_variants = [
+                    time_slot,  # "09:00"
+                    time_slot.replace(":", ""),  # "0900"
+                    time_slot.lstrip("0"),  # "9:00"
+                    time_slot.replace(":00", ""),  # "09"
+                    str(int(time_slot.split(":")[0]))  # "9"
+                ]
+                
+                if any(variant in user_input for variant in time_variants):
+                    self.conversation_state["selected_doctor"] = temp_doctor
+                    self.conversation_state["selected_time"] = time_slot
+                    self.conversation_state["stage"] = "confirmation"
+                    del self.conversation_state["temp_selected_doctor"]
+                    
+                    return f"Perfect! I have you scheduled with {temp_doctor} at {time_slot}. Let me confirm your details:\n\nName: {self.conversation_state['patient_name']}\nPhone: {self.conversation_state['patient_phone']}\nDoctor: {temp_doctor}\nTime: {time_slot}\n\nShall I confirm this appointment?"
+            
+            # If still no match, ask again
+            return f"I didn't catch the time. {temp_doctor} is available at: {', '.join(available_times)}. Which time works for you?"
+        
+        # If nothing matched, provide help
+        doctor_names = list(set([doc["doctor_name"] for doc in doctors]))
+        return f"I couldn't identify the doctor from your response. Available doctors are: {', '.join(doctor_names)}. Could you please tell me which doctor you'd like to see?"
     
     def handle_test_selection(self, user_input: str) -> str:
         tests = self.db_manager.get_available_tests()
