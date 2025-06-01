@@ -63,7 +63,7 @@ class AudioLoop:
     async def handle_tool_call(self, tool_call):
         function_responses = []
         for fc in tool_call.function_calls:
-            print("TOOL Used: ", fc.name)
+            print("TOOL Used - ", fc.name)
             await self.websocket.send(
                 json.dumps(
                     {
