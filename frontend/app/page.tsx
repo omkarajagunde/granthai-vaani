@@ -221,7 +221,7 @@ export default function GranthAICallPro() {
     }
 
     if (response.assistantActivity) {
-      setAssistantActivity((prevActivity) => ([...prevActivity, response.assistantActivity]))
+      setAssistantActivity([...assistantActivity, response.assistantActivity])
     }
   }
 
