@@ -60,10 +60,14 @@ class Response {
   text: null
   audioData: null
   endOfTurn: null
+  modelError: null
+  assistantActivity: null
   constructor(data: any) {
     this.text = null;
     this.audioData = null;
     this.endOfTurn = null;
+    this.modelError = null
+    this.assistantActivity = null
 
     if (data.text) {
       this.text = data.text
@@ -71,6 +75,14 @@ class Response {
 
     if (data.audio) {
       this.audioData = data.audio;
+    }
+
+    if (data.model_error) {
+      this.modelError = data.model_error
+    }
+
+    if (data.assistant_activity) {
+      this.assistantActivity = data.assistant_activity
     }
   }
 }
@@ -96,6 +108,7 @@ export default function GranthAICallPro() {
   const [assistantMessage, setAssistantMessage] = useState("")
   const [playingVoice, setPlayingVoice] = useState<string>("")
   const [windowWidth, setWindowWidth] = useState(0)
+  const [assistantActivity, setAssistantActivity] = useState<Array<string>>([])
 
   const waveformRef = useRef<HTMLDivElement>(null)
   let pcmData: number[] = []
@@ -201,6 +214,14 @@ export default function GranthAICallPro() {
 
     if (response.audioData) {
       injestAudioChuckToPlay(response.audioData);
+    }
+
+    if (response.modelError) {
+      window.prompt("Error: ", response.modelError)
+    }
+
+    if (response.assistantActivity) {
+      setAssistantActivity([...assistantActivity, response.assistantActivity])
     }
   }
 
@@ -743,7 +764,7 @@ export default function GranthAICallPro() {
 
         {/* Live Transcription Console */}
         <AnimatePresence>
-          {transcriptChunks.length > 0 && (
+          {assistantActivity.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -758,11 +779,11 @@ export default function GranthAICallPro() {
                       Live Transcription Console
                     </h3>
                     <span className="text-green-400/70 text-sm font-mono">
-                      {transcriptChunks.length} chunks processed
+                      {assistantActivity.length} events processed
                     </span>
                   </div>
                   <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm max-h-40 overflow-y-auto">
-                    {transcriptChunks.map((chunk, index) => (
+                    {assistantActivity.map((chunk, index) => (
                       <motion.div
                         key={chunk.id}
                         initial={{ opacity: 0, x: -10 }}
@@ -770,11 +791,8 @@ export default function GranthAICallPro() {
                         transition={{ delay: index * 0.1 }}
                         className="mb-1"
                       >
-                        <span className="text-gray-500 text-xs mr-2">
-                          [{new Date(chunk.timestamp).toLocaleTimeString()}]
-                        </span>
-                        <span className="text-green-400">{chunk.text}</span>
-                        <span className="text-yellow-400 text-xs ml-2">({(chunk.confidence * 100).toFixed(0)}%)</span>
+
+                        <span className="text-green-400">{chunk.toString()}</span>
                       </motion.div>
                     ))}
                     {isRecording && (
@@ -786,31 +804,6 @@ export default function GranthAICallPro() {
                         ▋ Listening...
                       </motion.div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Captured Data JSON View */}
-        <AnimatePresence>
-          {Object.keys(capturedData).length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="mb-8"
-            >
-              <Card className="bg-gray-900/90 border-blue-400/30">
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-blue-400 mb-4 flex items-center">
-                    <span className="w-2 h-2 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
-                    Extracted Information (Live Session)
-                  </h3>
-                  <div className="bg-black rounded-lg p-4 font-mono text-sm">
-                    <div className="text-gray-500 mb-2">// Real-time data extraction</div>
-                    <pre className="text-blue-400">{JSON.stringify(capturedData, null, 2)}</pre>
                   </div>
                 </CardContent>
               </Card>
