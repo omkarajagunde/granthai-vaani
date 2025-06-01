@@ -6,12 +6,14 @@ import traceback
 from google import genai
 from google.genai import types
 from tools import get_tool
-import http
-import signal
 from prompts import get_prompt, get_tool_config
 import websockets
 
-print("HI")
+from fastapi import FastAPI, WebSocket
+from fastapi.responses import PlainTextResponse
+
+app = FastAPI()
+
 
 # MODEL = "gemini-2.5-flash-preview-native-audio-dialog"
 # MODEL = "gemini-2.0-flash-exp"
@@ -168,23 +170,24 @@ async def gemini_session_handler(websocket):
 
 async def main() -> None:
     try:
-        async with websockets.serve(
-            gemini_session_handler, "0.0.0.0", 9082, process_request=health_check
-        ) as server:
+        async with websockets.serve(gemini_session_handler, "0.0.0.0", 9082):
             print("Running websocket server on 0.0.0.0:9082...")
-            loop = asyncio.get_running_loop()
-            loop.add_signal_handler(signal.SIGTERM, server.close)
-            await server.wait_closed()
+            await asyncio.Future()  # Keep the server running indefinitely
     except Exception as e:
         print(f"WebSocket server error: {e}")
 
 
-def health_check(connection, request):
-    if request.path == "/healthz":
-        return connection.respond(http.HTTPStatus.OK, "OK\n")
+@app.get("/")
+def health_check():
+    return PlainTextResponse("OK")
 
-    if request.path == "/health":
-        return connection.respond(http.HTTPStatus.OK, "OK\n")
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    while True:
+        data = await websocket.receive_text()
+        await websocket.send_text(f"Message: {data}")
 
 
 if __name__ == "__main__":
