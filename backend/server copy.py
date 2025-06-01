@@ -43,12 +43,19 @@ import asyncio
 import base64
 import json
 import os
+import sys
 import traceback
+
+import pyaudio
+
 from google import genai
 from google.genai import types
 from tools import get_tool
 from prompts import get_prompt, get_tool_config
 import websockets
+
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
 
 # MODEL = "gemini-2.5-flash-preview-native-audio-dialog"
 # MODEL = "gemini-2.0-flash-exp"
@@ -57,6 +64,9 @@ API_KEY = os.getenv("GOOGLE_API_KEY")
 ASSISTANT_NAME = "yoda_diagnostics"
 SYSTEM_PROMPT = get_prompt(ASSISTANT_NAME)
 TOOL_CONFIG = get_tool_config(ASSISTANT_NAME)
+
+pya = pyaudio.PyAudio()
+
 
 client = genai.Client(
     api_key=API_KEY,
@@ -115,6 +125,24 @@ class AudioLoop:
         await self.session.send_tool_response(function_responses=function_responses)
 
     async def listen_audio_from_websocket(self):
+        # mic_info = pya.get_default_input_device_info()
+        # self.audio_stream = await asyncio.to_thread(
+        #     pya.open,
+        #     format=FORMAT,
+        #     channels=CHANNELS,
+        #     rate=SEND_SAMPLE_RATE,
+        #     input=True,
+        #     input_device_index=mic_info["index"],
+        #     frames_per_buffer=CHUNK_SIZE,
+        # )
+        # if __debug__:
+        #     kwargs = {"exception_on_overflow": False}
+        # else:
+        #     kwargs = {}
+        # while True:
+        #     data = await asyncio.to_thread(self.audio_stream.read, CHUNK_SIZE, **kwargs)
+        #     await self.out_queue.put({"data": data, "mime_type": "audio/pcm"})
+
         try:
             async for message in self.websocket:
                 try:
@@ -196,6 +224,11 @@ class AudioLoop:
             if self.audio_stream:
                 self.audio_stream.close()
             traceback.print_exception(EG)
+
+
+# if __name__ == "__main__":
+#     loop = AudioLoop()
+#     asyncio.run(loop.run())
 
 
 async def gemini_session_handler(websocket):
