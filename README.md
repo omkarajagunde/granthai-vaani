@@ -10,6 +10,8 @@
 
 While we’re a wrapper on top of powerful services like **Google Gemini** and **ElevenLabs**, our real value lies in making it all *work seamlessly* for **real businesses**. Think of us as your **AI agent setup partner**—from voice to integrations to deployment.
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/4etad9Lx9YY?si=snEj5vWxq_Y82Ybh" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 ---
 
 ### 🏥 Example Use Case: Pathology Test Booking Agent
