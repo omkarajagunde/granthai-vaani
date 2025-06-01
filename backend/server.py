@@ -50,6 +50,8 @@ from tools import get_tool
 from prompts import get_prompt, get_tool_config
 import websockets
 
+print("HI")
+
 # MODEL = "gemini-2.5-flash-preview-native-audio-dialog"
 # MODEL = "gemini-2.0-flash-exp"
 MODEL = "gemini-2.0-flash-live-001"
@@ -204,10 +206,16 @@ async def gemini_session_handler(websocket):
 
 
 async def main() -> None:
-    async with websockets.serve(gemini_session_handler, "localhost", 9082):
-        print("Running websocket server localhost:9082...")
-        await asyncio.Future()  # Keep the server running indefinitely
+    try:
+        async with websockets.serve(gemini_session_handler, "0.0.0.0", 9082):
+            print("Running websocket server on 0.0.0.0:9082...")
+            await asyncio.Future()  # Keep the server running indefinitely
+    except Exception as e:
+        print(f"WebSocket server error: {e}")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Server failed to start: {e}")
