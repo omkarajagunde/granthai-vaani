@@ -1,2 +1,3 @@
 google-genai 
 websockets
+fastapi
