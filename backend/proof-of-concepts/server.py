@@ -17,7 +17,7 @@ SYSTEM_PROMPT = get_prompt(ASSISTANT_NAME)
 TOOL_CONFIG = get_tool_config(ASSISTANT_NAME)
 
 client = genai.Client(
-    api_key="AIzaSyC53ibNLS53KyRHXW2q0due7o0aCBiPNBk",
+    api_key="YOUR KEY HERE",
     http_options={
         "api_version": "v1beta",
     },
