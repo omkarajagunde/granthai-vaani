@@ -76,8 +76,8 @@ class Response {
 }
 
 export default function GranthAICallPro() {
-  const [selectedPersona, setSelectedPersona] = useState<string>("")
-  const [selectedVoice, setSelectedVoice] = useState<string>("")
+  const [selectedPersona, setSelectedPersona] = useState<string>("pathalogy")
+  const [selectedVoice, setSelectedVoice] = useState<string>("mohan")
   const [isRecording, setIsRecording] = useState(false)
   const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>([])
   const [capturedData, setCapturedData] = useState<CapturedData>({})
@@ -116,6 +116,10 @@ export default function GranthAICallPro() {
       return () => window.removeEventListener("resize", handleResize)
     }
   }, [])
+
+  useEffect(() => {
+    webSocket.send(JSON.stringify({ config_change: { voice: selectedVoice, persona: selectedPersona } }));
+  }, [selectedVoice, selectedPersona])
 
   const personas: PersonaType[] = [
     {

@@ -31,7 +31,7 @@ CONFIG = types.LiveConnectConfig(
     ],
     speech_config=types.SpeechConfig(
         voice_config=types.VoiceConfig(
-            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Kore")
+            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
         )
     ),
     # context_window_compression=types.ContextWindowCompressionConfig(
@@ -169,6 +169,7 @@ def health_check(connection, request):
         return connection.respond(http.HTTPStatus.OK, "OK\n")
 
     if request.path == "/health":
+        print("health invoked")
         return connection.respond(http.HTTPStatus.OK, "OK\n")
 
 
