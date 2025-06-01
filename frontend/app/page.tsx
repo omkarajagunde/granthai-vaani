@@ -821,7 +821,7 @@ export default function GranthAICallPro() {
           className="text-center py-8 mt-16"
         >
           <p className="text-white/60">
-            © 2024 GranthAI CallPro. Revolutionizing appointment booking with AI voice assistants.
+            © 2025 Vaani | वाणी. Revolutionizing appointment booking with AI voice assistants.
           </p>
         </motion.footer>
       </div>
