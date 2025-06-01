@@ -64,7 +64,7 @@ class AudioLoop:
         function_responses = []
         for fc in tool_call.function_calls:
             print("TOOL Used: ", fc.name)
-            self.websocket.send(
+            await self.websocket.send(
                 json.dumps(
                     {
                         "assistant_activity": f"TOOL called - {fc.name}",
@@ -73,7 +73,7 @@ class AudioLoop:
             )
             func_generator = get_tool(ASSISTANT_NAME, fc.name)
             resp = func_generator(**fc.args)
-            self.websocket.send(
+            await self.websocket.send(
                 json.dumps(
                     {
                         "assistant_activity": f"TOOL response - {resp}\n\n\n",
@@ -116,7 +116,7 @@ class AudioLoop:
                 await self.session.send_realtime_input(audio=msg)
         except Exception as e:
             print("Exception while sending audio to gemini - ", e)
-            self.websocket.send(
+            await self.websocket.send(
                 json.dumps(
                     {
                         "model_error": f"{e}",
