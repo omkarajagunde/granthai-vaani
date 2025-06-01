@@ -42,6 +42,7 @@ Start talking to Gemini
 import asyncio
 import base64
 import json
+import os
 import sys
 import traceback
 
@@ -53,19 +54,13 @@ from tools import get_tool
 from prompts import get_prompt, get_tool_config
 import websockets
 
-if sys.version_info < (3, 11, 0):
-    import taskgroup, exceptiongroup  # noqa: E401
-
-    asyncio.TaskGroup = taskgroup.TaskGroup
-    asyncio.ExceptionGroup = exceptiongroup.ExceptionGroup
-
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 
 # MODEL = "gemini-2.5-flash-preview-native-audio-dialog"
 # MODEL = "gemini-2.0-flash-exp"
 MODEL = "gemini-2.0-flash-live-001"
-API_KEY = "YOUR KEY HERE"
+API_KEY = os.getenv("GOOGLE_API_KEY")
 ASSISTANT_NAME = "yoda_diagnostics"
 SYSTEM_PROMPT = get_prompt(ASSISTANT_NAME)
 TOOL_CONFIG = get_tool_config(ASSISTANT_NAME)
@@ -195,13 +190,6 @@ class AudioLoop:
                 self.audio_in_queue.get_nowait()
 
     async def send_audio_to_client(self):
-        # stream = await asyncio.to_thread(
-        #     pya.open,
-        #     format=FORMAT,
-        #     channels=CHANNELS,
-        #     rate=24000,
-        #     output=True,
-        # )
         while True:
             print("send_audio_to_client/audio_in_queue - ", self.audio_in_queue)
             bytestream = await self.audio_in_queue.get()
@@ -213,9 +201,6 @@ class AudioLoop:
                     }
                 )
             )
-
-            # bytestream = await self.audio_in_queue.get()
-            # await asyncio.to_thread(stream.write, bytestream)
 
     async def run(self):
         print("Please start speaking... start by saying hello...!")
