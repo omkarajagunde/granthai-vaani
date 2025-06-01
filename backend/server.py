@@ -148,7 +148,6 @@ class AudioLoop:
 
     async def send_audio_to_client(self):
         while True:
-            print("Sending audio back to socket conn id - ", self.websocket.id)
             bytestream = await self.audio_in_queue.get()
             base64_audio = base64.b64encode(bytestream).decode("utf-8")
             await self.websocket.send(
@@ -180,10 +179,12 @@ class AudioLoop:
         except ExceptionGroup as EG:  # noqa: F821
             if self.audio_stream:
                 self.audio_stream.close()
+            await self.websocket.send(json.dumps({"model_error": f"{EG}"}))
             traceback.print_exception(EG)
 
 
 async def gemini_session_handler(websocket):
+    print("New client connected - ", websocket.id)
     loop = AudioLoop(websocket)
     await loop.run()
 

@@ -221,7 +221,7 @@ export default function GranthAICallPro() {
     }
 
     if (response.assistantActivity) {
-      setAssistantActivity([...assistantActivity, response.assistantActivity])
+      setAssistantActivity((prevActivity) => ([...prevActivity, response.assistantActivity]))
     }
   }
 
@@ -776,7 +776,7 @@ export default function GranthAICallPro() {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-green-400 flex items-center">
                       <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
-                      Live Transcription Console
+                      Assistant background actions
                     </h3>
                     <span className="text-green-400/70 text-sm font-mono">
                       {assistantActivity.length} events processed
@@ -785,7 +785,7 @@ export default function GranthAICallPro() {
                   <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm max-h-40 overflow-y-auto">
                     {assistantActivity.map((chunk, index) => (
                       <motion.div
-                        key={chunk.id}
+                        key={index}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
