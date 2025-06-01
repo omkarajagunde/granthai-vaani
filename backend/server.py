@@ -11,8 +11,6 @@ import signal
 from prompts import get_prompt, get_tool_config
 import websockets
 
-print("HI")
-
 # MODEL = "gemini-2.5-flash-preview-native-audio-dialog"
 # MODEL = "gemini-2.0-flash-exp"
 MODEL = "gemini-2.0-flash-live-001"
@@ -31,11 +29,11 @@ CONFIG = types.LiveConnectConfig(
     response_modalities=[
         "AUDIO",
     ],
-    # speech_config=types.SpeechConfig(
-    #     voice_config=types.VoiceConfig(
-    #         prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Sulafat")
-    #     )
-    # ),
+    speech_config=types.SpeechConfig(
+        voice_config=types.VoiceConfig(
+            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Kore")
+        )
+    ),
     # context_window_compression=types.ContextWindowCompressionConfig(
     #     trigger_tokens=25600,
     #     sliding_window=types.SlidingWindow(target_tokens=12800),
