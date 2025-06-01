@@ -166,6 +166,14 @@ async def gemini_session_handler(websocket):
     await loop.run()
 
 
+def health_check(connection, request):
+    if request.path == "/healthz":
+        return connection.respond(http.HTTPStatus.OK, "OK\n")
+
+    if request.path == "/health":
+        return connection.respond(http.HTTPStatus.OK, "OK\n")
+
+
 async def main() -> None:
     try:
         async with websockets.serve(
@@ -177,14 +185,6 @@ async def main() -> None:
             await server.wait_closed()
     except Exception as e:
         print(f"WebSocket server error: {e}")
-
-
-def health_check(connection, request):
-    if request.path == "/healthz":
-        return connection.respond(http.HTTPStatus.OK, "OK\n")
-
-    if request.path == "/health":
-        return connection.respond(http.HTTPStatus.OK, "OK\n")
 
 
 if __name__ == "__main__":
