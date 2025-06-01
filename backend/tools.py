@@ -27,7 +27,7 @@ def get_test_details():
 
 def book_appointment(**kwargs):
     print("BOOK APPOINTMENT: ", kwargs)
-    return "Booking successful"
+    return "Booking successful - " + f"{kwargs}"
 
 
 function_map = {
