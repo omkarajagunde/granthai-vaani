@@ -64,8 +64,22 @@ class AudioLoop:
         function_responses = []
         for fc in tool_call.function_calls:
             print("TOOL Used: ", fc.name)
+            self.websocket.send(
+                json.dumps(
+                    {
+                        "assistant_activity": f"TOOL called - {fc.name}",
+                    }
+                )
+            )
             func_generator = get_tool(ASSISTANT_NAME, fc.name)
             resp = func_generator(**fc.args)
+            self.websocket.send(
+                json.dumps(
+                    {
+                        "assistant_activity": f"TOOL response - {resp}\n\n\n",
+                    }
+                )
+            )
             function_response = types.FunctionResponse(
                 id=fc.id,
                 name=fc.name,
@@ -96,9 +110,19 @@ class AudioLoop:
             print("send_to_gemini closed")
 
     async def send_realtime_audio_to_gemini(self):
-        while True:
-            msg = await self.out_queue.get()
-            await self.session.send_realtime_input(audio=msg)
+        try:
+            while True:
+                msg = await self.out_queue.get()
+                await self.session.send_realtime_input(audio=msg)
+        except Exception as e:
+            print("Exception while sending audio to gemini - ", e)
+            self.websocket.send(
+                json.dumps(
+                    {
+                        "model_error": f"{e}",
+                    }
+                )
+            )
 
     async def receive_audio_from_gemini(self):
         "Background task to reads from the websocket and write pcm chunks to the output queue"
@@ -124,7 +148,7 @@ class AudioLoop:
 
     async def send_audio_to_client(self):
         while True:
-            print("send_audio_to_client/audio_in_queue - ", self.audio_in_queue)
+            print("Sending audio back to socket conn id - ", self.websocket.id)
             bytestream = await self.audio_in_queue.get()
             base64_audio = base64.b64encode(bytestream).decode("utf-8")
             await self.websocket.send(
