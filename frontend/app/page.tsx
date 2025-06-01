@@ -125,36 +125,20 @@ export default function GranthAICallPro() {
       description: "Book lab tests and medical appointments",
       color: "#D8E9A8",
       gradient: "from-green-400 to-emerald-500",
-    },
-    {
-      id: "dental",
-      name: "Dental Booking Agent",
-      icon: Smile,
-      description: "Schedule dental consultations",
-      color: "#A8D8E9",
-      gradient: "from-blue-400 to-cyan-500",
-    },
-    {
-      id: "feedback",
-      name: "Feedback Agent",
-      icon: FileText,
-      description: "Collect customer feedback",
-      color: "#E9A8D8",
-      gradient: "from-purple-400 to-pink-500",
-    },
+    }
   ]
 
   const voices: VoiceType[] = [
     {
       id: "mohan",
       name: "Mohan",
-      accent: "English (can speak Hindi)",
+      accent: "English",
       icon: Mic,
       preview: "Hello! I'm Mohan, your friendly assistant.",
     }
   ]
 
-  const steps = ["Select Persona", "Choose Voice", "Start Recording"]
+  const steps = ["Select Persona", "Choose Voice", "Start talking"]
 
   const initializeAudioContext = async () => {
     if (initialized) return;
