@@ -14,7 +14,7 @@ def get_health_packages():
 
 
 def get_test_details():
-    url = "https://api.yodadiagnostics.com/tests/paginate/individual/724/1"
+    url = "https://api.yodadiagnostics.com/tests/paginate/individual/10/1"
     response = requests.get(url)
     response = response.json()
 
