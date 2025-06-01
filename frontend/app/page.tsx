@@ -477,7 +477,7 @@ export default function GranthAICallPro() {
             }}
             transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
           >
-            Vaani
+            Vaani | वाणी
           </motion.h1>
           <motion.p
             className="text-xl text-white/80 max-w-3xl mx-auto"
