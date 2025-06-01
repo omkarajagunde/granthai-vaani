@@ -146,29 +146,15 @@ export default function GranthAICallPro() {
 
   const voices: VoiceType[] = [
     {
-      id: "mira",
-      name: "Mira",
-      accent: "Indian English",
+      id: "mohan",
+      name: "Mohan",
+      accent: "English (can speak Hindi)",
       icon: Mic,
-      preview: "Hello! I'm Mira, your friendly assistant.",
-    },
-    {
-      id: "ashley",
-      name: "Ashley",
-      accent: "American English",
-      icon: Volume2,
-      preview: "Hi there! Ashley here, ready to help you.",
-    },
-    {
-      id: "vikram",
-      name: "Vikram",
-      accent: "British English",
-      icon: Phone,
-      preview: "Good day! Vikram at your service.",
-    },
+      preview: "Hello! I'm Mohan, your friendly assistant.",
+    }
   ]
 
-  const steps = ["Select Persona", "Choose Voice", "Start Recording", "Processing", "Confirmation", "Call Initiated"]
+  const steps = ["Select Persona", "Choose Voice", "Start Recording"]
 
   const initializeAudioContext = async () => {
     if (initialized) return;
@@ -507,7 +493,7 @@ export default function GranthAICallPro() {
             }}
             transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
           >
-            GranthAI CallPro
+            Vaani
           </motion.h1>
           <motion.p
             className="text-xl text-white/80 max-w-3xl mx-auto"
@@ -515,7 +501,7 @@ export default function GranthAICallPro() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            AI-Powered Voice Assistant for Seamless Appointment Booking
+            AI phone agents that sound human, speak any language, and work 24/7.
           </motion.p>
         </motion.div>
 
