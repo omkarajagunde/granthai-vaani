@@ -118,7 +118,8 @@ export default function GranthAICallPro() {
   }, [])
 
   useEffect(() => {
-    webSocket.send(JSON.stringify({ config_change: { voice: selectedVoice, persona: selectedPersona } }));
+    if (webSocket)
+      webSocket.send(JSON.stringify({ config_change: { voice: selectedVoice, persona: selectedPersona } }));
   }, [selectedVoice, selectedPersona])
 
   const personas: PersonaType[] = [
