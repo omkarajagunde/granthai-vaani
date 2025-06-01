@@ -685,7 +685,7 @@ export default function GranthAICallPro() {
               ) : (
                 <>
                   <Mic className="mr-2 h-5 w-5" />
-                  Start Talking
+                  Start Talking (say Hello!)
                 </>
               )}
             </Button>
