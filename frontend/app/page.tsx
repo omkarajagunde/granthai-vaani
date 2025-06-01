@@ -56,6 +56,25 @@ interface TranscriptChunk {
   confidence: number
 }
 
+class Response {
+  text: null
+  audioData: null
+  endOfTurn: null
+  constructor(data: any) {
+    this.text = null;
+    this.audioData = null;
+    this.endOfTurn = null;
+
+    if (data.text) {
+      this.text = data.text
+    }
+
+    if (data.audio) {
+      this.audioData = data.audio;
+    }
+  }
+}
+
 export default function GranthAICallPro() {
   const [selectedPersona, setSelectedPersona] = useState<string>("")
   const [selectedVoice, setSelectedVoice] = useState<string>("")
@@ -79,6 +98,11 @@ export default function GranthAICallPro() {
   const [windowWidth, setWindowWidth] = useState(0)
 
   const waveformRef = useRef<HTMLDivElement>(null)
+  let pcmData: number[] = []
+  let webSocket: WebSocket;
+  let initialized = false
+  let audioInputContext: AudioContext;
+  let workletNode: AudioWorkletNode
 
   // Handle window width for responsive particles
   useEffect(() => {
@@ -146,6 +170,172 @@ export default function GranthAICallPro() {
 
   const steps = ["Select Persona", "Choose Voice", "Start Recording", "Processing", "Confirmation", "Call Initiated"]
 
+  const initializeAudioContext = async () => {
+    if (initialized) return;
+
+    audioInputContext = new (window.AudioContext)({ sampleRate: 24000 });
+    await audioInputContext.audioWorklet.addModule("pcm-processor.js");
+    workletNode = new AudioWorkletNode(audioInputContext, "pcm-processor");
+    workletNode.connect(audioInputContext.destination);
+    initialized = true;
+  }
+
+  const injestAudioChuckToPlay = async (base64AudioChunk: any) => {
+
+    const base64ToArrayBuffer = (base64: any) => {
+      const binaryString = window.atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    const convertPCM16LEToFloat32 = (pcmData: any) => {
+      const inputArray = new Int16Array(pcmData);
+      const float32Array = new Float32Array(inputArray.length);
+
+      for (let i = 0; i < inputArray.length; i++) {
+        float32Array[i] = inputArray[i] / 32768;
+      }
+
+      return float32Array;
+    }
+
+
+    try {
+      if (!initialized) {
+        await initializeAudioContext();
+      }
+
+      if (audioInputContext.state === "suspended") {
+        await audioInputContext.resume();
+      }
+      const arrayBuffer = base64ToArrayBuffer(base64AudioChunk);
+      const float32Data = convertPCM16LEToFloat32(arrayBuffer);
+
+      workletNode.port.postMessage(float32Data);
+    } catch (error) {
+      console.error("Error processing audio chunk:", error);
+    }
+  }
+
+  const receiveMessage = (event: any) => {
+    const messageData = JSON.parse(event.data);
+    const response = new Response(messageData);
+
+    if (response.audioData) {
+      injestAudioChuckToPlay(response.audioData);
+    }
+  }
+
+  const connect = () => {
+
+    webSocket = new WebSocket("ws://localhost:9082");
+
+    webSocket.onclose = (event) => {
+      console.log("websocket closed: ", event);
+      alert("Connection closed");
+    };
+
+    webSocket.onerror = (event) => {
+      console.log("websocket error: ", event);
+    };
+
+    webSocket.onopen = (event) => {
+      console.log("websocket open: ", event);
+    };
+
+    webSocket.onmessage = receiveMessage;
+  }
+
+  const sendVoiceMessage = (b64PCM: any) => {
+    if (webSocket == null) {
+      console.log("websocket not initialized");
+      return;
+    }
+
+    let payload = {
+      realtime_input: {
+        media_chunks: [{
+          mime_type: "audio/pcm",
+          data: b64PCM,
+        }
+        ],
+      },
+    };
+
+    webSocket.send(JSON.stringify(payload));
+    console.log("sent: ", payload);
+  }
+
+  const recordChunk = () => {
+    const buffer = new ArrayBuffer(pcmData.length * 2);
+    const view = new DataView(buffer);
+    pcmData.forEach((value, index) => {
+      view.setInt16(index * 2, value, true);
+    });
+
+
+    const base64 = btoa(
+      // @ts-ignore
+      String.fromCharCode.apply(null, new Uint8Array(buffer))
+    );
+
+    sendVoiceMessage(base64);
+    pcmData = [];
+  }
+
+  const startAudioInput = async () => {
+    let audioContext = new AudioContext({
+      sampleRate: 16000,
+    });
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        sampleRate: 16000,
+      },
+    });
+
+    const source = audioContext.createMediaStreamSource(stream);
+    let processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+    const floatTo16BitPCM = (float32Array: any) => {
+      const buffer = new ArrayBuffer(float32Array.length * 2);
+      const view = new DataView(buffer);
+      for (let i = 0; i < float32Array.length; i++) {
+        let s = Math.max(-1, Math.min(1, float32Array[i]));
+        view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true); // little-endian
+      }
+      return buffer;
+    }
+
+    processor.onaudioprocess = (e) => {
+      const inputData = e.inputBuffer.getChannelData(0);
+      const pcm16 = new Int16Array(inputData.length);
+      for (let i = 0; i < inputData.length; i++) {
+        pcm16[i] = inputData[i] * 0x7fff;
+      }
+
+      pcmData.push(...pcm16);
+
+      // const pcm = floatTo16BitPCM(inputData);
+      // let binary = '';
+      // const bytes = new Uint8Array(pcm);
+      // for (let i = 0; i < bytes.byteLength; i++) {
+      //   binary += String.fromCharCode(bytes[i]);
+      // }
+      // sendVoiceMessage(btoa(binary))
+      // recordChunk()
+    };
+
+    source.connect(processor);
+    processor.connect(audioContext.destination);
+
+    let interval = setInterval(recordChunk, 1500);
+  }
+
   // Simulate voice recording and real-time transcription
   const handleStartRecording = async () => {
     if (!selectedPersona || !selectedVoice) {
@@ -155,79 +345,9 @@ export default function GranthAICallPro() {
 
     setIsRecording(true)
     setIsProcessing(true)
-    setCurrentStep(2)
-    setAssistantMessage("Listening... Speak clearly! 👂")
 
-    // Simulate real-time transcription chunks
-    const sampleChunks = [
-      { text: "Hi, I'm", confidence: 0.95 },
-      { text: "Elson Nag.", confidence: 0.98 },
-      { text: "I need to book", confidence: 0.92 },
-      { text: "a pathology test", confidence: 0.96 },
-      { text: "appointment.", confidence: 0.94 },
-      { text: "My address is", confidence: 0.91 },
-      { text: "123 AI Lane,", confidence: 0.89 },
-      { text: "Chennai, India.", confidence: 0.93 },
-      { text: "You can reach me at", confidence: 0.87 },
-      { text: "+91-9876543210.", confidence: 0.95 },
-      { text: "I prefer morning slots,", confidence: 0.88 },
-      { text: "maybe around 10 AM", confidence: 0.92 },
-      { text: "next Tuesday.", confidence: 0.9 },
-    ]
-
-    for (let i = 0; i < sampleChunks.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 800 + Math.random() * 400))
-
-      const chunk: TranscriptChunk = {
-        id: `chunk-${Date.now()}-${i}`,
-        text: sampleChunks[i].text,
-        timestamp: Date.now(),
-        confidence: sampleChunks[i].confidence,
-      }
-
-      setTranscriptChunks((prev) => [...prev, chunk])
-
-      // Extract data progressively
-      const fullText = [...transcriptChunks, chunk].map((c) => c.text).join(" ")
-      extractDataFromText(fullText)
-    }
-
-    setCurrentStep(3)
-    setAssistantMessage("Processing your information... 🧠✨")
-
-    setTimeout(() => {
-      setIsProcessing(false)
-      setIsRecording(false)
-      setCurrentStep(4)
-      setAssistantMessage("Great! I've captured your details. Please confirm! ✅")
-      setShowConfirmation(true)
-    }, 2000)
-  }
-
-  const extractDataFromText = (text: string) => {
-    const data: CapturedData = {}
-
-    // Simple pattern matching for demo
-    const nameMatch = text.match(/I'm\s+([A-Za-z\s]+?)(?:\.|,|$)/i)
-    if (nameMatch) data.name = nameMatch[1].trim()
-
-    const phoneMatch = text.match(/(\+\d{1,3}[-.\s]?\d{10}|\d{10})/g)
-    if (phoneMatch) data.phone = phoneMatch[0]
-
-    const addressMatch = text.match(/address is\s+([^.]+)/i)
-    if (addressMatch) data.address = addressMatch[1].trim()
-
-    if (text.includes("pathology")) data.appointmentType = "Pathology Test"
-    if (text.includes("dental")) data.appointmentType = "Dental Consultation"
-    if (text.includes("feedback")) data.appointmentType = "Feedback Session"
-
-    const timeMatch = text.match(/(morning|afternoon|evening|10 AM|2 PM|4 PM)/i)
-    if (timeMatch) data.preferredTime = timeMatch[0]
-
-    const dateMatch = text.match(/(next\s+\w+|tomorrow|today|\w+day)/i)
-    if (dateMatch) data.preferredDate = dateMatch[0]
-
-    setCapturedData(data)
+    connect()
+    startAudioInput()
   }
 
   const handleConfirmBooking = async () => {
@@ -335,8 +455,8 @@ export default function GranthAICallPro() {
       const animateWave = () => {
         Array.from(bars).forEach((bar, index) => {
           const height = Math.random() * 60 + 20
-          ;(bar as HTMLElement).style.height = `${height}px`
-          ;(bar as HTMLElement).style.opacity = `${0.6 + Math.random() * 0.4}`
+            ; (bar as HTMLElement).style.height = `${height}px`
+            ; (bar as HTMLElement).style.opacity = `${0.6 + Math.random() * 0.4}`
         })
       }
 
@@ -459,11 +579,10 @@ export default function GranthAICallPro() {
                 whileTap={{ scale: 0.98 }}
               >
                 <Card
-                  className={`cursor-pointer transition-all duration-300 border-2 ${
-                    selectedPersona === persona.id
-                      ? "border-green-400 bg-white/20 shadow-lg shadow-green-400/20"
-                      : "border-white/20 bg-white/10 hover:bg-white/15"
-                  }`}
+                  className={`cursor-pointer transition-all duration-300 border-2 ${selectedPersona === persona.id
+                    ? "border-green-400 bg-white/20 shadow-lg shadow-green-400/20"
+                    : "border-white/20 bg-white/10 hover:bg-white/15"
+                    }`}
                   onClick={() => {
                     setSelectedPersona(persona.id)
                     setCurrentStep(Math.max(currentStep, 0))
@@ -502,11 +621,10 @@ export default function GranthAICallPro() {
               transition={{ duration: 1, repeat: isRecording ? Number.POSITIVE_INFINITY : 0 }}
             >
               <motion.div
-                className={`w-32 h-32 rounded-full flex items-center justify-center shadow-2xl cursor-pointer ${
-                  isRecording
-                    ? "bg-gradient-to-br from-red-500 to-red-600"
-                    : "bg-gradient-to-br from-green-500 to-emerald-600"
-                }`}
+                className={`w-32 h-32 rounded-full flex items-center justify-center shadow-2xl cursor-pointer ${isRecording
+                  ? "bg-gradient-to-br from-red-500 to-red-600"
+                  : "bg-gradient-to-br from-green-500 to-emerald-600"
+                  }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={isRecording ? () => setIsRecording(false) : handleStartRecording}
@@ -552,11 +670,10 @@ export default function GranthAICallPro() {
             <Button
               onClick={isRecording ? () => setIsRecording(false) : handleStartRecording}
               size="lg"
-              className={`px-8 py-3 text-lg font-semibold transition-all duration-300 ${
-                isRecording
-                  ? "bg-red-500 hover:bg-red-600"
-                  : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-              }`}
+              className={`px-8 py-3 text-lg font-semibold transition-all duration-300 ${isRecording
+                ? "bg-red-500 hover:bg-red-600"
+                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                }`}
               disabled={isProcessing}
             >
               {isProcessing ? (
@@ -607,11 +724,10 @@ export default function GranthAICallPro() {
                 whileTap={{ scale: 0.98 }}
               >
                 <Card
-                  className={`cursor-pointer transition-all duration-300 border-2 ${
-                    selectedVoice === voice.id
-                      ? "border-blue-400 bg-white/20 shadow-lg shadow-blue-400/20"
-                      : "border-white/20 bg-white/10 hover:bg-white/15"
-                  }`}
+                  className={`cursor-pointer transition-all duration-300 border-2 ${selectedVoice === voice.id
+                    ? "border-blue-400 bg-white/20 shadow-lg shadow-blue-400/20"
+                    : "border-white/20 bg-white/10 hover:bg-white/15"
+                    }`}
                   onClick={() => {
                     setSelectedVoice(voice.id)
                     setCurrentStep(Math.max(currentStep, 1))
