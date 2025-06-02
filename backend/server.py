@@ -10,9 +10,6 @@ import http
 import signal
 from prompts import get_prompt, get_tool_config
 import websockets
-import pyaudio
-
-pya = pyaudio.PyAudio()
 
 # MODEL = "gemini-2.5-flash-preview-native-audio-dialog"
 # MODEL = "gemini-2.0-flash-exp"
