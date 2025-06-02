@@ -42,9 +42,9 @@ CONFIG = types.LiveConnectConfig(
     #     trigger_tokens=25600,
     #     sliding_window=types.SlidingWindow(target_tokens=12800),
     # ),
-    realtime_input_config=types.RealtimeInputConfig(
-        turn_coverage="TURN_INCLUDES_ALL_INPUT"
-    ),
+    # realtime_input_config=types.RealtimeInputConfig(
+    #     turn_coverage="TURN_INCLUDES_ALL_INPUT"
+    # ),
     system_instruction=SYSTEM_PROMPT,
     tools=[TOOL_CONFIG],
 )
@@ -125,7 +125,6 @@ class AudioLoop:
         "Background task to reads from the websocket and write pcm chunks to the output queue"
         while True:
             turn = self.session.receive()
-            print("self.audio_in_queue - ", self.audio_in_queue.qsize())
             async for response in turn:
                 if (
                     response.server_content
@@ -134,7 +133,7 @@ class AudioLoop:
                     print("Interruption detected")
                 if response.usage_metadata:
                     usage = response.usage_metadata
-                    print("usage : ", usage.prompt_token_count)
+                    print("output token usage : ", usage.total_token_count, " tokens")
                 if data := response.data:
                     self.audio_in_queue.put_nowait(data)
                     continue
@@ -154,10 +153,6 @@ class AudioLoop:
     async def send_audio_to_client(self):
         while True:
             bytestream = await self.audio_in_queue.get()
-            print(
-                "Picked packet, self.audio_in_queue.qsize - ",
-                self.audio_in_queue.qsize(),
-            )
             base64_audio = base64.b64encode(bytestream).decode("utf-8")
             await self.websocket.send(
                 json.dumps(
@@ -167,8 +162,14 @@ class AudioLoop:
                 )
             )
 
-            # Simulate real-time playback duration
-            # Replace these with actual values
+            """
+                Simulate real-time playback duration
+                Replace these with actual values
+
+                This is very IMPORTANT becuase websocket.send is async 
+                so while True consumes the queue very very fast and all the voice is 
+                sent to client, so talk to interrupt doesn't work hence the below code
+            """
             sample_rate = 24000  # e.g. 16 kHz
             channels = 1  # mono
             bytes_per_sample = 2  # 16-bit PCM => 2 bytes
