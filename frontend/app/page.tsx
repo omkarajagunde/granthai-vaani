@@ -284,6 +284,7 @@ export default function GranthAICallPro() {
   }
 
   const startAudioInput = async () => {
+    const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
     let audioContext = new AudioContext({
       sampleRate: 16000,
     });
@@ -298,26 +299,25 @@ export default function GranthAICallPro() {
     const source = audioContext.createMediaStreamSource(stream);
     let processor = audioContext.createScriptProcessor(4096, 1, 1);
 
-    function arrayBufferToBase64(buffer: any) {
-      let binary = '';
-      const bytes = new Uint8Array(buffer);
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return btoa(binary);
-    }
-
-    function floatTo16BitPCM(float32Array: any) {
-      const buffer = new ArrayBuffer(float32Array.length * 2);
-      const view = new DataView(buffer);
-      for (let i = 0; i < float32Array.length; i++) {
-        let s = Math.max(-1, Math.min(1, float32Array[i]));
-        view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true); // little-endian
-      }
-      return buffer;
-    }
-
     processor.onaudioprocess = (e) => {
+      function arrayBufferToBase64(buffer: any) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+      }
+
+      function floatTo16BitPCM(float32Array: any) {
+        const buffer = new ArrayBuffer(float32Array.length * 2);
+        const view = new DataView(buffer);
+        for (let i = 0; i < float32Array.length; i++) {
+          let s = Math.max(-1, Math.min(1, float32Array[i]));
+          view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true); // little-endian
+        }
+        return buffer;
+      }
       const inputData = e.inputBuffer.getChannelData(0);
       const pcm = floatTo16BitPCM(inputData);
       // const pcm16 = new Int16Array(inputData.length);
