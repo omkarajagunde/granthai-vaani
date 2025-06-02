@@ -10,6 +10,9 @@ import http
 import signal
 from prompts import get_prompt, get_tool_config
 import websockets
+import pyaudio
+
+pya = pyaudio.PyAudio()
 
 # MODEL = "gemini-2.5-flash-preview-native-audio-dialog"
 # MODEL = "gemini-2.0-flash-exp"
@@ -21,7 +24,7 @@ TOOL_CONFIG = get_tool_config(ASSISTANT_NAME)
 
 client = genai.Client(
     api_key=API_KEY,
-    http_options={"api_version": "v1beta"},
+    http_options={"api_version": "v1alpha"},
 )
 
 my_loop = asyncio.new_event_loop()
@@ -29,6 +32,7 @@ CONFIG = types.LiveConnectConfig(
     response_modalities=[
         "AUDIO",
     ],
+    # enable_affective_dialog=True, // only available for gemini-2.5-flash-preview-native-audio-dialog
     speech_config=types.SpeechConfig(
         voice_config=types.VoiceConfig(
             prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
@@ -49,16 +53,9 @@ CONFIG = types.LiveConnectConfig(
 class AudioLoop:
     def __init__(self, websocket):
         self.websocket = websocket
-        self.turn_complete = False
         self.audio_in_queue = None
         self.out_queue = None
-
         self.session = None
-
-        self.audio_stream = None
-
-        self.receive_audio_task = None
-        self.play_audio_task = None
 
     async def handle_tool_call(self, tool_call):
         function_responses = []
@@ -128,8 +125,16 @@ class AudioLoop:
         "Background task to reads from the websocket and write pcm chunks to the output queue"
         while True:
             turn = self.session.receive()
-
+            print("self.audio_in_queue - ", self.audio_in_queue.qsize())
             async for response in turn:
+                if (
+                    response.server_content
+                    and response.server_content.interrupted is True
+                ):
+                    print("Interruption detected")
+                if response.usage_metadata:
+                    usage = response.usage_metadata
+                    print("usage : ", usage.prompt_token_count)
                 if data := response.data:
                     self.audio_in_queue.put_nowait(data)
                     continue
@@ -149,6 +154,10 @@ class AudioLoop:
     async def send_audio_to_client(self):
         while True:
             bytestream = await self.audio_in_queue.get()
+            print(
+                "Picked packet, self.audio_in_queue.qsize - ",
+                self.audio_in_queue.qsize(),
+            )
             base64_audio = base64.b64encode(bytestream).decode("utf-8")
             await self.websocket.send(
                 json.dumps(
@@ -157,6 +166,18 @@ class AudioLoop:
                     }
                 )
             )
+
+            # Simulate real-time playback duration
+            # Replace these with actual values
+            sample_rate = 24000  # e.g. 16 kHz
+            channels = 1  # mono
+            bytes_per_sample = 2  # 16-bit PCM => 2 bytes
+
+            duration_seconds = len(bytestream) / (
+                sample_rate * channels * bytes_per_sample
+            )
+
+            await asyncio.sleep(duration_seconds)
 
     async def run(self):
         print("Please start speaking... start by saying hello...!")
@@ -177,8 +198,6 @@ class AudioLoop:
         except asyncio.CancelledError:
             pass
         except ExceptionGroup as EG:  # noqa: F821
-            if self.audio_stream:
-                self.audio_stream.close()
             await self.websocket.send(json.dumps({"model_error": f"{EG}"}))
             traceback.print_exception(EG)
 

@@ -227,7 +227,8 @@ export default function GranthAICallPro() {
 
   const connect = () => {
 
-    webSocket = new WebSocket("wss://granthai-vaani-production.up.railway.app");
+    // webSocket = new WebSocket("wss://granthai-vaani-production.up.railway.app");
+    webSocket = new WebSocket("ws://localhost:9082");
 
     webSocket.onclose = (event) => {
       console.log("websocket closed: ", event);
@@ -297,39 +298,19 @@ export default function GranthAICallPro() {
     const source = audioContext.createMediaStreamSource(stream);
     let processor = audioContext.createScriptProcessor(4096, 1, 1);
 
-    const floatTo16BitPCM = (float32Array: any) => {
-      const buffer = new ArrayBuffer(float32Array.length * 2);
-      const view = new DataView(buffer);
-      for (let i = 0; i < float32Array.length; i++) {
-        let s = Math.max(-1, Math.min(1, float32Array[i]));
-        view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true); // little-endian
-      }
-      return buffer;
-    }
-
     processor.onaudioprocess = (e) => {
       const inputData = e.inputBuffer.getChannelData(0);
       const pcm16 = new Int16Array(inputData.length);
       for (let i = 0; i < inputData.length; i++) {
         pcm16[i] = inputData[i] * 0x7fff;
       }
-
       pcmData.push(...pcm16);
-
-      // const pcm = floatTo16BitPCM(inputData);
-      // let binary = '';
-      // const bytes = new Uint8Array(pcm);
-      // for (let i = 0; i < bytes.byteLength; i++) {
-      //   binary += String.fromCharCode(bytes[i]);
-      // }
-      // sendVoiceMessage(btoa(binary))
-      // recordChunk()
     };
 
     source.connect(processor);
     processor.connect(audioContext.destination);
 
-    let interval = setInterval(recordChunk, 1500);
+    let interval = setInterval(recordChunk, 500);
   }
 
   // Simulate voice recording and real-time transcription
