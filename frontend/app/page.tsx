@@ -227,8 +227,8 @@ export default function GranthAICallPro() {
 
   const connect = () => {
 
-    // webSocket = new WebSocket("wss://granthai-vaani-production.up.railway.app");
-    webSocket = new WebSocket("ws://localhost:9082");
+    webSocket = new WebSocket("wss://granthai-vaani-production.up.railway.app");
+    // webSocket = new WebSocket("ws://localhost:9082");
 
     webSocket.onclose = (event) => {
       console.log("websocket closed: ", event);
